@@ -68,6 +68,17 @@ class ChApi ChMeshFileLoader {
             true  ///< if true, Abaqus nodes that are not used in elements or sets are not imported in C::E
     );
 
+    static void FromAbaqusFile(
+        std::shared_ptr<ChMesh> mesh,
+        const char* filename,
+        std::shared_ptr<ChContinuumMaterial> my_material,
+        std::map<std::string, std::vector<std::shared_ptr<ChNodeFEAbase> > >& node_sets,
+        std::map<std::string, std::vector<std::shared_ptr<ChElementBase> > >& element_sets,
+        ChVector3d pos_transform = VNULL,
+        ChMatrix33<> rot_transform = ChMatrix33<>(1),
+        bool discard_unused_nodes = true
+    );
+
     static void ANCFShellFromGMFFile(
         std::shared_ptr<ChMesh> mesh,                      ///< destination mesh
         const char* filename,                              ///< complete filename
