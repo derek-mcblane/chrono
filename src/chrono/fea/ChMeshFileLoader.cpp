@@ -260,18 +260,20 @@ void ChMeshFileLoader::FromAbaqusFile(std::shared_ptr<ChMesh> mesh,
             e_parse_section = E_PARSE_UNKNOWN;
 
             if (line.find("*NODE") == 0) {
-                std::string::size_type nse = line.find("NSET=");
-                if (nse > 0) {
+                std::string::size_type nse = line.find("NSET=", 5);
+                std::cout << "| parsing nodes";
+                if (nse != std::string::npos) {
                     std::string::size_type ncom = line.find(",", nse);
                     std::string s_node_set = line.substr(nse + 5, ncom - (nse + 5));
-                    std::cout << "| parsing nodes " << s_node_set << std::endl;
+                    std::cout << ' ' << s_node_set;
                 }
+                std::cout << '\n';
                 e_parse_section = E_PARSE_NODES_XYZ;
             }
 
             if (line.find("*ELEMENT") == 0) {
-                std::string::size_type nty = line.find("TYPE=");
-                if (nty > 0) {
+                std::string::size_type nty = line.find("TYPE=", 8);
+                if (nty != std::string::npos) {
                     std::string::size_type ncom = line.find(",", nty);
                     std::string s_ele_type = line.substr(nty + 5, ncom - (nty + 5));
                     e_parse_section = E_PARSE_UNKNOWN;
@@ -282,17 +284,21 @@ void ChMeshFileLoader::FromAbaqusFile(std::shared_ptr<ChMesh> mesh,
                     } else if (s_ele_type == "C3D4") {
                         e_parse_section = E_PARSE_TETS_4;
                     }
-                    if (e_parse_section == E_PARSE_UNKNOWN) {
+                    else {
                         std::cerr << "| WARNING " << "line: " << line << '\n'
                             << "| skipping unsupported *ELEMENT section TYPE=" << s_ele_type << '\n'
                             << "| (only C3D10 or DC3D10 or C3D4 tetrahedrons supported)\n";
                     }
                 }
-                std::string::size_type nse = line.find("ELSET=");
-                if (nse > 0) {
-                    std::string::size_type ncom = line.find(",", nse);
-                    std::string s_ele_set = line.substr(nse + 6, ncom - (nse + 6));
-                    std::cout << "| parsing element set: " << s_ele_set << std::endl;
+                if (e_parse_section != E_PARSE_UNKNOWN) {
+                    std::string::size_type nse = line.find("ELSET=", 8);
+                    std::cout << "| parsing elements";
+                    if (nse != std::string::npos) {
+                        std::string::size_type ncom = line.find(",", nse);
+                        std::string s_ele_set = line.substr(nse + 6, ncom - (nse + 6));
+                        std::cout << ' ' << s_ele_set;
+                    }
+                    std::cout << '\n';
                 }
             }
 
@@ -337,7 +343,7 @@ void ChMeshFileLoader::FromAbaqusFile(std::shared_ptr<ChMesh> mesh,
 
         // node parsing
         if (e_parse_section == E_PARSE_NODES_XYZ) {
-            int idnode = 0;
+            unsigned int idnode;
             double x = -10e30;
             double y = -10e30;
             double z = -10e30;
@@ -346,19 +352,25 @@ void ChMeshFileLoader::FromAbaqusFile(std::shared_ptr<ChMesh> mesh,
 
             std::string token;
             std::istringstream ss(line);
+
+            std::getline(ss, token, ',');
+            std::istringstream stoken(token);
+            stoken >> idnode;
+            std::cout << "| parsing node " << idnode << '\n';
+
             while (std::getline(ss, token, ',') && ntoken < 20) {
                 std::istringstream stoken(token);
                 stoken >> tokenvals[ntoken];
                 ++ntoken;
             }
 
-            if (ntoken != 4)
+            if (ntoken != 3)
                 throw std::invalid_argument("ERROR in .inp file: nodes require ID and three x y z coords, see line:\n" +
                                             line + "\n");
 
-            x = tokenvals[1];
-            y = tokenvals[2];
-            z = tokenvals[3];
+            x = tokenvals[0];
+            y = tokenvals[1];
+            z = tokenvals[2];
             if (x == -10e30 || y == -10e30 || z == -10e30)
                 throw std::invalid_argument("ERROR in .inp file: in parsing x,y,z coordinates of node: \n" + line +
                                             "\n");
@@ -366,10 +378,10 @@ void ChMeshFileLoader::FromAbaqusFile(std::shared_ptr<ChMesh> mesh,
             // TODO: is it worth to keep a so specific routine inside this function?
             // especially considering that is affecting only some types of elements...
             ChVector3d node_position(x, y, z);
+            std::cout << "| parsed node " << idnode << " xyz=" << node_position << '\n';
             node_position = rot_transform * node_position;  // rotate/scale, if needed
             node_position = pos_transform + node_position;  // move, if needed
 
-            idnode = static_cast<unsigned int>(tokenvals[0]);
             if (std::dynamic_pointer_cast<ChContinuumElastic>(my_material)) {
                 auto mnode = chrono_types::make_shared<ChNodeFEAxyz>(node_position);
                 mnode->SetIndex(idnode);
@@ -405,7 +417,8 @@ void ChMeshFileLoader::FromAbaqusFile(std::shared_ptr<ChMesh> mesh,
                 throw std::invalid_argument(
                     "ERROR in .inp file: tetrahedrons require ID, see line:\n" + line + "\n");
             }
-            int idelem = tokenvals[0];
+            const unsigned int idelem = tokenvals[0];
+            std::cout << "| parsing element " << idelem << '\n';
 
             if (e_parse_section == E_PARSE_TETS_10) {
                 if (ntoken != 11)
@@ -430,13 +443,17 @@ void ChMeshFileLoader::FromAbaqusFile(std::shared_ptr<ChMesh> mesh,
             if (std::dynamic_pointer_cast<ChContinuumElastic>(my_material) ||
                 std::dynamic_pointer_cast<ChContinuumPoisson3D>(my_material)) {
                 std::array<std::shared_ptr<ChNodeFEAbase>, 4> element_nodes;
-                for (auto node_sel = 0; node_sel < 4; ++node_sel) {
+                for (unsigned int node_sel = 0; node_sel < 4; ++node_sel) {
                     // check if the nodes required by the current element exist
-                    std::pair<std::shared_ptr<ChNodeFEAbase>, bool>& node_found =
-                        parsed_nodes.at(static_cast<unsigned int>(tokenvals[node_sel + 1]));
+                    const unsigned int idnode = tokenvals[node_sel + 1];
+                    auto it = parsed_nodes.find(idnode);
+                    if (it == parsed_nodes.end()) {
+                        throw std::invalid_argument("ERROR in in .inp file: element node id " + std::to_string(idnode) +
+                                                    " doesn't exist: \n" + line + "\n");
+                    }
 
-                    element_nodes[node_sel] = node_found.first;
-                    node_found.second = true;
+                    element_nodes[node_sel] = it->second.first;
+                    it->second.second = true;
                 }
 
                 if (std::dynamic_pointer_cast<ChContinuumElastic>(my_material)) {
@@ -486,7 +503,7 @@ void ChMeshFileLoader::FromAbaqusFile(std::shared_ptr<ChMesh> mesh,
                 if (idnode > 0) {
                     // check if the nodeset is asking for an existing node
                     std::pair<std::shared_ptr<ChNodeFEAbase>, bool>& node_found =
-                        parsed_nodes.at(static_cast<unsigned int>(tokenvals[node_sel]));
+                        parsed_nodes.at(static_cast<unsigned int>(idnode));
 
                     current_nodeset_vector->push_back(node_found.first);
                     // flag the node to be saved later into the mesh
@@ -520,7 +537,7 @@ void ChMeshFileLoader::FromAbaqusFile(std::shared_ptr<ChMesh> mesh,
                 if (idelement > 0) {
                     // check if the nodeset is asking for an existing node
                     std::pair<std::shared_ptr<ChElementBase>, bool>& element_found =
-                        parsed_elements.at(static_cast<unsigned int>(tokenvals[element_sel]));
+                        parsed_elements.at(tokenvals[element_sel]);
 
                     current_elementset_vector->push_back(element_found.first);
                     // flag the element to be saved later into the mesh
