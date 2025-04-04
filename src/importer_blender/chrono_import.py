@@ -58,6 +58,7 @@ import numpy as np
 import mathutils
 import os
 import math
+import gc
 from enum import Enum
 from bpy.types import (Operator,
                        Panel,
@@ -1379,7 +1380,7 @@ def callback_post(self):
         # remove just materials added as per-frame materials    
         for mmat in chrono_frame_materials:
             bpy.data.materials.remove(mmat)
-        chrono_frame_materials = [] # empty list 
+        chrono_frame_materials.clear()
             
         # orphan_materials = [m for m in bpy.data.materials if not m.users]
         #while orphan_materials:
@@ -1512,12 +1513,14 @@ def read_chrono_simulation(context, filepath, setting_materials, setting_merge):
         # remove materials added as per-frame materials    
         for mmat in chrono_frame_materials:
             bpy.data.materials.remove(mmat)
-        chrono_frame_materials = [] # empty list
+        chrono_frame_materials.clear()
         
         # remove materials added as immutable materials    
         for mmat in chrono_materials:
             bpy.data.materials.remove(mmat)
-        chrono_materials = [] # empty list
+        chrono_materials.clear()
+
+        gc.collect()
     
     
     # CLEANUP orphaned data, if any
@@ -1657,10 +1660,10 @@ def read_chrono_simulation(context, filepath, setting_materials, setting_merge):
     chrono_gui_doupdate = True
     
     #clear the post frame handler
-    bpy.app.handlers.frame_change_post.clear()
+    bpy.app.handlers.frame_change_pre.clear()
 
     #run the function on each frame
-    bpy.app.handlers.frame_change_post.append(callback_post)
+    bpy.app.handlers.frame_change_pre.append(callback_post)
 
 
     # TEST: Update to a frame where particles are updated
@@ -2091,10 +2094,10 @@ def register():
     bpy.types.TOPBAR_MT_file_import.append(menu_func_import)
     
         #clear the post frame handler
-    bpy.app.handlers.frame_change_post.clear()
+    bpy.app.handlers.frame_change_pre.clear()
 
     #run the function on each frame
-    bpy.app.handlers.frame_change_post.append(callback_post)
+    bpy.app.handlers.frame_change_pre.append(callback_post)
 
     # sidebar UI:
     for c in sidebar_classes:
@@ -2190,7 +2193,7 @@ def unregister():
         
     bpy.utils.unregister_class(ImportChrono)
     bpy.types.TOPBAR_MT_file_import.remove(menu_func_import)
-    bpy.app.handlers.frame_change_post.remove(callback_post)
+    bpy.app.handlers.frame_change_pre.remove(callback_post)
 
     # sidebar UI:
 
