@@ -217,6 +217,8 @@ class CH_VSG_API ChVisualSystemVSG : virtual public ChVisualSystem {
     void SetLightIntensity(float intensity);
     void SetLightDirection(double azimuth, double elevation);
     void SetCameraAngleDeg(double angleDeg) { m_cameraAngleDeg = angleDeg; }
+    void SetCameraNearDistance(double distance) { m_cameraNearDistance = distance; }
+    void SetCameraFarDistance(double distance) { m_cameraFarDistance = distance; }
     void SetGuiFontSize(float theSize);
 
     virtual void AddGrid(double x_step,
@@ -489,6 +491,8 @@ class CH_VSG_API ChVisualSystemVSG : virtual public ChVisualSystem {
     vsg::dvec3 m_cameraUpVector;
     bool m_yup;
     double m_cameraAngleDeg = 30.0;
+    double m_cameraNearDistance = 0.5;
+    double m_cameraFarDistance = 500.0;
 
     double m_lightIntensity = 1.0f;
     double m_elevation = 0;

@@ -1008,7 +1008,6 @@ void ChVisualSystemVSG::Initialize() {
 
     m_scene = vsg::Group::create();
 
-    double radius = 50.0;
     vsg::dbox bound;
 
     if (m_useSkybox) {
@@ -1133,11 +1132,10 @@ void ChVisualSystemVSG::Initialize() {
     // set up the camera
     m_lookAt = vsg::LookAt::create(m_vsg_cameraEye, m_vsg_cameraTarget, m_cameraUpVector);
 
-    double nearFarRatio = 0.001;
     auto perspective = vsg::Perspective::create(
         m_cameraAngleDeg,
         static_cast<double>(m_window->extent2D().width) / static_cast<double>(m_window->extent2D().height),
-        nearFarRatio * radius, radius * 10.0);
+        m_cameraNearDistance, m_cameraFarDistance);
 
     m_vsg_camera = vsg::Camera::create(perspective, m_lookAt, vsg::ViewportState::create(m_window->extent2D()));
 
